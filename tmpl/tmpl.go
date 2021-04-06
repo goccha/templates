@@ -40,46 +40,34 @@ func funcMap() map[string]interface{} {
 	return functions
 }
 
-func New(template string) (*template.Template, error) {
-	body, err := ReadFile(context.Background(), template)
-	if err != nil {
+func New(templates ...string) (tm *template.Template, err error) {
+	var data *TemplateData
+	if data, err = ReadFile(context.Background(), templates...); err != nil {
 		return nil, err
+	} else {
+		tm, err = data.Text()
 	}
-	return NewTextTemplate(template, string(body))
+	return
 }
 
-func NewHtml(template string) (*html.Template, error) {
-	body, err := ReadFile(context.Background(), template)
-	if err != nil {
+func NewHtml(template ...string) (tm *html.Template, err error) {
+	var data *TemplateData
+	if data, err = ReadFile(context.Background(), template...); err != nil {
 		return nil, err
+	} else {
+		tm, err = data.Html()
 	}
-	return NewHtmlTemplate(template, string(body))
-}
-
-func NewTextTemplate(name, value string) (*template.Template, error) {
-	tm, err := template.New(name).Funcs(funcMap()).Parse(value)
-	if err != nil {
-		return nil, err
-	}
-	return tm, nil
-}
-
-func NewHtmlTemplate(name, value string) (*html.Template, error) {
-	tm, err := html.New(name).Funcs(funcMap()).Parse(value)
-	if err != nil {
-		return nil, err
-	}
-	return tm, nil
+	return
 }
 
 func Search(ctx context.Context, path, name string) ([]byte, error) {
 	return reader.Search(ctx, GetFullPath(path), name)
 }
-func Read(ctx context.Context, path, name string) ([]byte, error) {
+func Read(ctx context.Context, path, name string) (*TemplateData, error) {
 	return reader.Read(ctx, path, name)
 }
-func ReadFile(ctx context.Context, path string) ([]byte, error) {
-	return reader.ReadFile(ctx, path)
+func ReadFile(ctx context.Context, filePath ...string) (*TemplateData, error) {
+	return reader.ReadFile(ctx, filePath...)
 }
 func GetFullPath(path string) string {
 	return reader.GetFullPath(path)

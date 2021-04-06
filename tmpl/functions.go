@@ -4,9 +4,8 @@ import (
 	"bytes"
 	"context"
 	"github.com/goccha/log"
-	html "html/template"
+	"html/template"
 	"os"
-	"text/template"
 	"time"
 )
 
@@ -16,6 +15,7 @@ func embedded() map[string]interface{} {
 	return map[string]interface{}{
 		"timeFormat": timeFormat,
 		"import":     importTemplate,
+		"importHtml": importHTML,
 		"env":        getEnv,
 		"date":       date,
 		"now":        now,
@@ -24,32 +24,38 @@ func embedded() map[string]interface{} {
 
 type Format string
 
-const (
-	HTML Format = "html"
-	TEXT Format = "text"
-)
-
-func importTemplate(filePath string, variables interface{}, format ...Format) (string, error) {
-	body, err := reader.ReadFile(context.Background(), filePath)
-	if err != nil {
+func importTemplate(filePath string, variables interface{}) (string, error) {
+	if data, err := reader.ReadFile(context.Background(), filePath); err != nil {
 		log.Error("%+v", err)
 		return "", err
-	}
-	buf := new(bytes.Buffer)
-	if format != nil && len(format) > 0 && format[0] == HTML {
-		if tm, err := html.New(filePath).Funcs(NewFuncMap()).Parse(string(body)); err != nil {
-			return "", err
-		} else if err = tm.Execute(buf, variables); err != nil {
-			return "", err
-		}
+	} else if data == nil {
+		return "", nil
 	} else {
-		if tm, err := template.New(filePath).Funcs(NewFuncMap()).Parse(string(body)); err != nil {
+		buf := new(bytes.Buffer)
+		if tm, err := data.Text(); err != nil {
 			return "", err
 		} else if err = tm.Execute(buf, variables); err != nil {
 			return "", err
 		}
+		return string(buf.Bytes()), nil
 	}
-	return string(buf.Bytes()), nil
+}
+
+func importHTML(filePath string, variables interface{}) (template.HTML, error) {
+	if data, err := reader.ReadFile(context.Background(), filePath); err != nil {
+		log.Error("%+v", err)
+		return "", err
+	} else if data == nil {
+		return "", nil
+	} else {
+		buf := new(bytes.Buffer)
+		if tm, err := data.Html(); err != nil {
+			return "", err
+		} else if err = tm.Execute(buf, variables); err != nil {
+			return "", err
+		}
+		return template.HTML(buf.Bytes()), nil
+	}
 }
 
 func NewFuncMap() map[string]interface{} {
@@ -80,12 +86,12 @@ func timeFormat(layout string, value interface{}) (string, error) {
 	return t.Format(layout), nil
 }
 
-func getEnv(names ...string) string {
-	for _, key := range names {
-		v, ok := os.LookupEnv(key)
-		if ok {
-			return v
-		}
+func getEnv(name string, defaultValue ...string) string {
+	if v, ok := os.LookupEnv(name); ok {
+		return v
+	}
+	if defaultValue != nil && len(defaultValue) > 0 {
+		return defaultValue[0]
 	}
 	return ""
 }
