@@ -41,19 +41,19 @@ type FileTemplateReader struct {
 	RootDir string `json:"root_dir"`
 }
 
-func (r *FileTemplateReader) ReadFile(ctx context.Context, path ...string) (*TemplateData, error) {
-	return readFile(ctx, path...)
+func (r *FileTemplateReader) ReadFile(ctx context.Context, filePath ...string) (*TemplateData, error) {
+	return readFile(ctx, filePath...)
 }
-func (r *FileTemplateReader) Search(ctx context.Context, template, name string) ([]byte, error) {
-	if template == "" {
+func (r *FileTemplateReader) Search(ctx context.Context, dirPath, name string) ([]byte, error) {
+	if dirPath == "" {
 		return nil, nil
 	}
-	files, err := os.ReadDir(template)
+	files, err := os.ReadDir(dirPath)
 	if err != nil {
 		return nil, err
 	}
 	for _, file := range files {
-		filename := filepath.Join(template, file.Name())
+		filename := filepath.Join(dirPath, file.Name())
 		if !file.IsDir() && strings.HasSuffix(filename, name) {
 			body, err := os.ReadFile(filename)
 			if err != nil {
@@ -63,21 +63,21 @@ func (r *FileTemplateReader) Search(ctx context.Context, template, name string) 
 			return body, nil
 		}
 	}
-	ctx, cur := GetCursor(ctx, template, r.RootDir, r.separator())
+	ctx, cur := GetCursor(ctx, dirPath, r.RootDir, r.separator())
 	dir, err := cur.Up()
 	if err == RootPath {
 		return nil, nil
 	}
 	return r.Search(ctx, dir, name)
 }
-func (r *FileTemplateReader) Read(ctx context.Context, path, name string, nested ...string) (*TemplateData, error) {
+func (r *FileTemplateReader) Read(ctx context.Context, dirPath, name string, nested ...string) (*TemplateData, error) {
 	if nested != nil && len(nested) > 0 {
 		filePath := make([]string, 0, len(nested)+1)
-		filePath = append(filePath, filepath.Join(path, name))
+		filePath = append(filePath, filepath.Join(dirPath, name))
 		filePath = append(filePath, nested...)
 		return r.ReadFile(ctx, filePath...)
 	} else {
-		return r.ReadFile(ctx, filepath.Join(path, name))
+		return r.ReadFile(ctx, filepath.Join(dirPath, name))
 	}
 }
 func (r *FileTemplateReader) GetFullPath(path string) string {

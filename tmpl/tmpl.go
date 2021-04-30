@@ -6,6 +6,7 @@ import (
 	"github.com/goccha/errors"
 	"github.com/goccha/log"
 	html "html/template"
+	"sync"
 	"text/template"
 )
 
@@ -31,13 +32,16 @@ func Setup(r TemplateReader, f ...func() map[string]interface{}) {
 	}
 }
 
-var functions map[string]interface{}
+var functions struct {
+	sync.Once
+	v map[string]interface{}
+}
 
 func funcMap() map[string]interface{} {
-	if functions == nil {
-		functions = NewFuncMap()
-	}
-	return functions
+	functions.Do(func() {
+		functions.v = NewFuncMap()
+	})
+	return functions.v
 }
 
 func New(templates ...string) (tm *template.Template, err error) {
@@ -60,11 +64,11 @@ func NewHtml(template ...string) (tm *html.Template, err error) {
 	return
 }
 
-func Search(ctx context.Context, path, name string) ([]byte, error) {
-	return reader.Search(ctx, GetFullPath(path), name)
+func Search(ctx context.Context, dirPath, name string) ([]byte, error) {
+	return reader.Search(ctx, GetFullPath(dirPath), name)
 }
-func Read(ctx context.Context, path, name string) (*TemplateData, error) {
-	return reader.Read(ctx, path, name)
+func Read(ctx context.Context, dirPath, name string) (*TemplateData, error) {
+	return reader.Read(ctx, dirPath, name)
 }
 func ReadFile(ctx context.Context, filePath ...string) (*TemplateData, error) {
 	return reader.ReadFile(ctx, filePath...)
